@@ -11,7 +11,7 @@ const clean = (s) => String(s || '').trim().slice(0, 24);
 const normalize = (s) => clean(s).toLowerCase();
 
 export const handler = async (event) => {
-  initBlobs(event);y
+  initBlobs(event);
   const method = event.httpMethod;
   const params = event.queryStringParameters || {};
   const name = clean(params.name);
