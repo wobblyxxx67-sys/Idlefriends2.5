@@ -4,10 +4,10 @@ const KEY = 'leaderboard';
 const clean = (s) => String(s || '').trim().slice(0, 24);
 const normalize = (s) => clean(s).toLowerCase();
 
-export default async (req) => {
-  const method = req.httpMethod;
-  const params = new URLSearchParams(req.rawUrl?.split('?')[1] || '');
-  const name = clean(params.get('name'));
+export const handler = async (event) => {
+  const method = event.httpMethod;
+  const params = event.queryStringParameters || {};
+  const name = clean(params.name);
 
   let board = await getJson(KEY, []);
   let users = await getJson('registered-users', []);
@@ -16,30 +16,38 @@ export default async (req) => {
   if (method === 'GET') {
     if (name) {
       return json(200, {
-        registered: users.some(u => normalize(u) === normalize(name))
+        registered: users.some((u) => normalize(u) === normalize(name))
       });
     }
 
     return json(200, {
       leaderboard: board
-        .filter(p => normalize(p.name) !== 'test123')
+        .filter((p) => normalize(p.name) !== 'test123')
         .sort((a, b) => (Number(b.rebirths) || 0) - (Number(a.rebirths) || 0))
     });
   }
 
   if (method === 'POST') {
-    const body = readJson(req);
-    const action = String(body.action || '').toLowerCase();
+    const body = readJson(event);
     const username = clean(body.name);
+    const action = String(body.action || '').toLowerCase();
 
-    if (!username) return json(400, { error: 'Name fehlt' });
+    if (!username) {
+      return json(400, { error: 'Name fehlt' });
+    }
 
     if (action === 'register') {
-      if (users.some(u => normalize(u) === normalize(username))) {
+      if (normalize(username) === 'test123') {
+        return json(409, { error: 'Dieser Name ist reserviert' });
+      }
+
+      if (users.some((u) => normalize(u) === normalize(username))) {
         return json(409, { error: 'Name bereits vergeben' });
       }
+
       users.push(username);
       await setJson('registered-users', users);
+
       return json(200, { ok: true });
     }
 
@@ -52,18 +60,19 @@ export default async (req) => {
       updatedAt: Date.now()
     };
 
-    board = board.filter(p => normalize(p.name) !== normalize(username));
+    board = board.filter((p) => normalize(p.name) !== normalize(username));
     board.push(entry);
     await setJson(KEY, board);
+
     return json(200, { ok: true });
   }
 
   if (method === 'DELETE') {
     if (!name) return json(400, { error: 'Name fehlt' });
 
-    board = board.filter(p => normalize(p.name) !== normalize(name));
-    users = users.filter(u => normalize(u) !== normalize(name));
-    presence = presence.filter(p => normalize(p.name) !== normalize(name));
+    board = board.filter((p) => normalize(p.name) !== normalize(name));
+    users = users.filter((u) => normalize(u) !== normalize(name));
+    presence = presence.filter((p) => normalize(p.name) !== normalize(name));
 
     await setJson(KEY, board);
     await setJson('registered-users', users);
