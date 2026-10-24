@@ -1,4 +1,7 @@
 import { connectLambda, getStore } from '@netlify/blobs';
+export function initBlobs(event) {
+  connectLambda(event);
+}
 
 function getBlobStore() {
   return getStore({
